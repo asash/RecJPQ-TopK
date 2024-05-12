@@ -3,8 +3,32 @@ import matplotlib.pyplot as plt
 
 data = pd.read_csv("data/simulated_experiment_results.csv")
 
-data= data[["num_items", "item_code_bytes",	"mRT"]]
+data= data[["num_items", "item_code_bytes",	"mRT", "method"]]
+mm_data = data[data.method == "Matrix Multiplication"]
+print(mm_data)
+
 markers = [".", "^", "x", "d", "D"]
+for item_code_bytes in data.item_code_bytes.unique():
+    code_data = data[data.item_code_bytes == item_code_bytes]
+    fig, ax = plt.subplots(1, 1, figsize=(4,2.5))
+    for i, method in enumerate(["PQTopK", "RecJPQ"]):
+        method_code_data = code_data[code_data.method == method]
+        ax.plot(method_code_data["num_items"], method_code_data["mRT"], label=method, marker = markers[i])
+        pass
+    ax.plot(mm_data["num_items"], mm_data["mRT"], label="Matrix Multiplication", linestyle="--")
+    ax.set_xlabel("Number of Items")
+    ax.set_ylabel("Median Running Time (ms)")
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    ax.grid()
+    ax.legend(prop={'size': 6})
+    fig.tight_layout()
+    fig.savefig(f"figures/simulated_figure_{item_code_bytes}.pdf")
+
+
+
+
+exit()
 plt.figure(figsize=(5,3))
 
 for i, codel_length in enumerate(data["item_code_bytes"].unique()):
