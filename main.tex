@@ -10,6 +10,10 @@
 \usepackage{enumitem}
 \usepackage{placeins}
 \usepackage{multirow}
+\usepackage{listings}
+\usepackage[skins]{tcolorbox}
+
+
 
 \usepackage{marginnote}
 %\newcommand{\pageenlarge}[1]{\marginnote{#1}\enlargethispage{#1\baselineskip}}
@@ -24,13 +28,15 @@
 \newcommand{\rsasha}[1]{\textcolor[HTML]{FF0000}{#1}}
 \newcommand{\craig}[1]{\textcolor{black}{#1}}
 \newcommand{\nt}[1]{\textcolor{black}{#1}}
+\newcommand{\pluseq}{\mathrel{+}=}
+
 
 \newcommand{\argmax}{\operatornamewithlimits{\sf argmax}}
 
 
 
 %\title{Pruning sub-item representations for large-catalogue recommender models}
-\title{Efficient Inference of Sub-Id based models with Millions of Items}
+\title{Efficient Inference of Sub-Item Id-based Sequential Recommendation Models with Millions of Items}
 \copyrightyear{2024} 
 \acmYear{2024} 
 
@@ -52,8 +58,9 @@
 \keywords{Recommender Systems, Inferenece}
 
 
-\setcopyright{acmlicensed}\acmConference[SIGIR '24]{Fourty Seventh International ACM SIGIR Conference on Research and Development in Information Retrieva}{July 14--18, 2024}{Washington D.C., USA}
-\acmBooktitle{Fourty Seventh International ACM SIGIR Conference on Research and Development in Information Retrieval (SIGIR '24), July 14--18, 2024, Washington D.C., USA}
+\setcopyright{acmlicensed}\acmConference[RecSys '24]{18th ACM Conference on Recommender Systems
+}{October 14--18 2024}{Bari, Italy}
+\acmBooktitle{18th ACM Conference on Recommender Systems, October 14--18 2024, Bari, Italy}
 
 
 \author{Anonymous Author(s)}
@@ -83,10 +90,38 @@
 \begin{document}
 
 \begin{abstract}
-Transformer-based recommender systems, such as BERT4Rec or SASRec, achieve state-of-the-art results in sequential recommendation. However, these models are still rarely used in the real-world recommendation. The major challenge of adapting these models is the catalogue size: in production, it is common to have millions of items in the catalogue, while scaling transformers beyond a few thousand items is problematic due to large GPU memory requirements, inefficient training and slow inference. Several recent papers addressed inefficient training and large memory requirements, but slow inference with large catalogues remains problematic. In particular, RecJPQ is a state-of-the-art method of reducing the model's memory consumption; RecJPQ achieves compression by decomposing item IDs into a small number of shared sub-item IDs. Despite reporting the reduction of memory consumption by a factor of up to 50x, the original RecJPQ paper did not report any inference efficiency improvements over the baseline transformer-based models. However, several earlier works based on similar ideas suggest that fast inference is possible when using sub-id decomposition. In this paper, we analyse the source of discrepancy between RecJPQ and similar work and find that the original RecJPQ code does not utilise inference optimisation techniques, such as execution graph compilation. We find that by utilising PQTopK, an efficient scoring algorithm, combined with optimisation techniques, such as graph compilation and avoiding converting data types (e.g. converting tensors to numpy arrays), we can speed up RecJPQ inference by \inote{XXX} times on a large-scale Gowalla dataset. Using simulated data, we show that PQTopK remains efficient with catalogues up to \inote{YYY million items}, removing one of the last obstacles for using transformer-based models in production.
+Transformer-based recommender systems, such as BERT4Rec or SASRec, achieve state-of-the-art results in sequential recommendation. However, these models are rarely used in production due to limited catalogue size: in production, it is common to have millions of items in the catalogue, while scaling transformers beyond a few thousand items is problematic due to large GPU memory requirements, inefficient training and slow inference. Several recent papers addressed inefficient training and large memory requirements, but slow inference with large catalogues remains problematic. In particular, RecJPQ is a state-of-the-art method of reducing the model's memory consumption; RecJPQ achieves compression by decomposing item IDs into a small number of shared sub-item IDs. Despite reporting the reduction of memory consumption by a factor of up to 50x, the original RecJPQ paper did not report inference efficiency improvements over the baseline transformer-based models. To address inference efficiency, we propose to apply PQTopK, an efficient item-scoring algorithm applied on top of RecJPQ-based models and find that we can increase the efficiency of these models by a large factor. In particular, we speed up RecJPQ-enhanced SASRec by a factor of 4.5$\times$ compared to the original SASRec's inference method and by the factor of  1.56$\times$ compared to the method implemented in RecJPQ code on a large-scale Gowalla dataset with more than million items. Using simulated data, we show that PQTopK remains efficient with catalogues of up to tens of millions of items, removing one of the last obstacles to using transformer-based models in production environments with large catalogues.
 \end{abstract}
 
 \maketitle
+
+\section{Introduction and Related work}
+The goal of Sequential Recommender models is to predict the next item in a sequence of user-item interactions. The best models for this task, such as are based on adaptations of Transformer~\cite{Transformer}-based models~\cite{SASRec, BERT4Rec, Bert4RecRepro, petrovGSASRecReducingOverconfidence2023}. 
+Originally, the Transformer~\cite{Transformer} architecture had been developed for the language processing domain, but recommender systems adapt the architecture by using items instead of tokens. 
+
+Despite achieving state-of-the-art results on the "toy" academic datasets, it is challenging to use these models in a production environment due to the scalability issues: the number of items in large-scale recommender systems, such as product recommendations in Amazon, can reach hundreds of millions, which is much larger than tens of thousands of tokens in the dictionaries of language models.  A large catalogue causes a number of problems in transformer models, such as large GPU memory requirement to store the item embeddings, large computational resources required to model training, and slow inference in production. Several works have recently addressed the memory consumption issues~\cite{xiaEfficientOnDeviceSessionBased2023, petrovRecJPQTrainingLargeCatalogue2024} and inefficient training~\cite{klenitskiyTurningDrossGold2023, petrovGSASRecReducingOverconfidence2023, petrovRSSEffectiveEfficient2023}; however, efficient model inference remains an open question, which we aim to address in this paper. Additionally, the large catalogue size is usually associated with a large user base, meaning that the trained model has to be inferred frequently and in parallel for many users. Therefore, to reduce the maintenance costs of a model, it is important to avoid the use of expensive GPU accelerators during the inference stage. 
+
+The main cause of slow inference of transformer-based models arises not from the transformer backbone model itself but from the computing scores for individual items. Indeed, the inference time of the backbone transformer is constant with respect to the number of items; however, computing item scores has linear complexity with respect to the number of items. Hence, to speed up inference, there are three options: (i) reduce the number of scored items, (ii) reduce the number of operations per item, and (iii) efficiently parallelise computations. 
+
+
+In the first category fall the approximate nearest neighbour methods, such as FAISS~\cite{FAISS} or Annoy~\cite{SpotifyAnnoy2024}. While these methods can be practical in some cases, there are two problems: (i) these methods are \emph{unsafe}, meaning that the result return from the ANN index may omit some candidates that would have been scored high by the model and (ii) they require item embeddings to be present in the first place in order to build the index, and training item embeddings for all items in large catalogue case maybe not feasible in the first place~\cite{petrovRecJPQTrainingLargeCatalogue2024}.
+
+Therefore, this paper focuses on reducing the number of operations per item and parallelising the computations. In particular, we build upon RecJPQ~\cite{petrovRecJPQTrainingLargeCatalogue2024}, a recent state-of-the-art approach for compressing embedding tables in Transformer-based sequential recommenders. RecJPQ achieves compression by representing items using a concatenation of shared sub-ids. While achieving great results on compression (for example, on the Gowalla~\cite{g} dataset, RecJPQ achieves up to 50$\times$ compression without degrading effectiveness), the RecJPQ paper doesn't perform an analysis of the model's inference in large catalogues and only briefly mentions that it is similar to the inference time of the original non-compressed models. On the other hand, prior works that built upon similar ideas of sub-id-based recommendation, such as LightRec~\cite{lianLightRecMemorySearchEfficient2020}, show that the sub-id-based method can indeed improve model inference time. 
+
+
+
+Therefore, in this paper, we analyse the following research hypothesis:
+\begin{tcolorbox}[enhanced, drop shadow, title={Hypothesis H1}]
+
+\label{hyp:h0}
+    RecJPQ-enhanced Transformer-based recommendation models can be efficiently inferred on catalogues with (multiple) millions of items without using GPU acceleration. 
+\end{tcolorbox}
+
+The main contributions of this paper can be summarised as follows: (i) We analyse inference efficiency of RecJPQ-enhanced versions of SASRec~\cite{SASRec} and BERT4Rec~\cite{BERT4Rec} and find that it is more efficient than Matrix-Multiplication based scoring used in the original models; (ii) we show that scoring of RecJPQ-based models can be further improved by employing better parallelization and (iii) we explore the limits of RecJPQ-based inference using simulated settings with up to 1 Billion items in catalogue and show that inference remains efficient with millions of items.
+Note that the main contribution of this paper is the exploration of the limits of existing methods. However, to the best of our knowledge, this is the first analysis of the inference of sub-id-based sequential models on large-scale datasets and the first demonstration of the feasibility of using these models in the large-catalogue scenario. 
+
+The rest of the paper is organised as follows: Section~\ref{ssec:recsys:preliminarilies} covers the background material on Transformers for a large-catalogue sequential recommendation; Section~\ref{sec:pq_topk} describes PQTopK, an efficient scoring algorithm for sub-id-based recommenders; Section~\ref{sec:experiments} contains experimental evaluation of different scoring methods on real and simulated data; Section~\ref{sec:conclusion} contains concluding remarks. 
+
 
 \section{Background} \label{ssec:recsys:preliminarilies}
 \subsection{Transformers for Large-catalogue Sequential Recommendation}\label{sec:rec}
@@ -99,7 +134,7 @@ Sequential recommendation bears a resemblance to the natural language processing
 Hence, researchers have adapted language models to the recommendation task by replacing token IDs (in language models) with item IDs (in recommendation models). In particular, Transformer~\cite{Transformer}-based models, such as SASRec~\cite{SASRec} (based on the Transformer Decoder architecture, similar to GPT-2~\cite{gpt2})  and BERT4Rec~\cite{BERT4Rec} (based on Transformer Encoder, similar to BERT) have demonstrated state-of-the-art results for sequential recommendation~\cite{Bert4RecRepro}. 
 
 
-Typically, to generate recommendations given a history of interactions $h = \left\{i_1, i_2, i_3 ... i_n\right\}$, Transformer-based models first generate a sequence embedding $\phi \in \mathbb{R}^d$, where $d$ is the embedding dimensionality, using the Transformer model, such that $\phi =  \textsf{Transformer}(h)$\footnote{In document retrieval parlance, this would be a query embedding.}.
+Typically, to generate recommendations given a history of interactions $h = \left\{i_1, i_2, i_3 ... i_n\right\}$, Transformer-based models first generate a sequence embedding $\phi \in \mathbb{R}^d$, where $d$ is the embedding dimensionality, using the Transformer model, such that $\phi =  \textsf{Transformer}(h)$.
 % \begin{align}
 % \phi =  \textsf{Transformer}(h)
 % \end{align}
@@ -121,7 +156,7 @@ Transformer-based models with large catalogues also require a lot of memory to s
 Finally, another problem with transformer-based models with large catalogues is their slow inference with large catalogues. Indeed, computing all item scores using Equation~\eqref{eq:scores} may be prohibitively expensive when the item catalogue is large: it requires $|I|\times d$ scalar multiplications and additions, and, as we noted in Section~\ref{sec:intro},  in real-world recommender systems, the catalogue size $|I|$ may reach hundreds of millions of items, making exhaustive computation using Equation~\eqref{eq:scores} impractical. Moreover, typically large-catalogue recommender systems have a large number of users as well; therefore, the model has to be used for inference very frequently, and, ideally, using only low-cost hardware, i.e., without using GPU acceleration. Therefore, real-life recommender systems rarely exhaustively score all items for all users and instead apply unsafe heuristics (i.e.\ heuristics that do not provide theoretical guarantees that all high-scored items will be returned, such as two-stage ranking). 
  
  %\pageenlarge{1}
-\section{Sub-Id based recommendation}\label{ssec:recjpq}
+\subsection{Sub-Id based recommendation}\label{ssec:recjpq}
 
 
 \begin{figure}[tb]\hspace{-3mm}
@@ -154,7 +189,7 @@ Finally, an item score is computed as the dot product of the  sequence embedding
     r_i = w_i \cdot \phi\label{eq:dot_product}
 \end{align}
 
-\section{PQTopK}
+\section{PQTopK} \label{sec:pq_topk}
 \looseness -1 A straightforward use of Equation~\eqref{eq:dot_product} for item scoring in PQ-based recommendation models does not lead to any computational efficiency improvements compared to models where all item embeddings are stored explicitly.
 However, PQ offers a more efficient scoring algorithm. To achieve more efficient scoring, PQ  first splits the sequence embedding $\phi \in \mathbb{R}^{d}$ into $m$ sub-embeddings $\left\{\phi_1, \phi_2 ... \phi_m\right\}$, with $\phi_{k} \in \mathbb{R}^{\frac{d}{m}}$ for $k=1, \ldots,m$, such that $\phi = \phi_1  \mathbin\Vert \phi_2  \mathbin\Vert ... \mathbin\Vert  \phi_m$.
 By substituting Equation~\eqref{eq:pq:item_embedding} and the similarly decomposed sequence embedding $\phi$ into Equation~\eqref{eq:dot_product}, we can compute the final item score for item $i$ as the sum of sub-embedding dot-products: 
@@ -200,24 +235,70 @@ In the paper, we refer to the summation-based approach as \textit{PQTopK}; Algor
    \Require $V \subseteq I$ are the items to score; all items ($V = I$)  if not given 
    
    \State $scores \gets$ empty array of scores for all items in $V$, initialised to 0
-   \For{$item\_id \in V$}
-        % \State $accum \gets 0$
-        % \For{$split\_id, subitem\_id \in \textsf{enumerate}(G[item\_id]$)}
-        %     \State $accum \gets accum + S[split\_id, subitem\_id]$
-        % \EndFor
+   \For{$item\_id \in V$} \Comment{This loop can be efficiently vectorised}
         \State $score[item\_id] \gets \sum_{k=1}^{m} S[k,G[item\_id,k]] $ \Comment{Eq.~\eqref{eq:sum_sub_scores}}
    \EndFor
    \State \Return TopK($score$, $K$) \Comment{Returns a list of $\langle$ItemId, Score$\rangle$ pairs} 
 \end{algorithmic}
 \end{algorithm}
+
+
+\section{Experiments}\label{sec:experiments}
+We designed our experiments to answer two research questions: 
+\begin{itemize}
+    \item[RQ1] How does PQTopK inference efficiency compare to baseline item scoring methods? 
+    \item[RQ2] How does PQTopK inference efficiency change when increasing the number of items in the catalogue? 
+\end{itemize}
+
 \begin{table}
+\caption{Efficiency analysis of item scoring methods. mRT is the Median Running Time, measured in milliseconds.}
 \resizebox{\linewidth}{!}{
     \input{main_table}
 }
 \end{table}
 
+
+\begin{figure}
+    \centering
+    \resizebox{\linewidth}{!}{
+        \includegraphics{figures/simulated_figure.pdf}
+    }
+    \caption{Efficiency of PQTopK on simulated data}
+    \label{fig:enter-label}
+\end{figure}
+
+\section{Conclusion}\label{sec:conclusion}
+
+
+
 \bibliographystyle{ACM-Reference-Format}
 \balance
 \bibliography{references}
+
+\appendix
+\section{Auxiliary Materials}
+\subsection{RecJPQ's Scoring Algorithm}
+\begin{algorithm}[h]
+\small
+\caption{RecJPQTopK($G$, $S$, $K$, $V$) Scoring algorithm used in RecJPQ.}\label{alg:top_k}
+\begin{algorithmic}[1]
+   \Require $G$ is the codebook (mapping: item id $\rightarrow$ sub-item ids), Eq.~\eqref{eq:sub_ids_map}
+   \Require $S$ is the matrix of pre-computed sub-item scores, indexed by split and sub-item, Eq.~\eqref{eq:sub_item_scores}
+
+    
+
+   \Require $K$ is the number of results to return
+   \Require $V \subseteq I$ are the items to score; all items ($V = I$)  if not given 
+   
+   \State $scores \gets$ empty array of scores for all items in $V$, initialised to 0
+   \For{$k \in 1..m$} \Comment{Not vectorised in RecJPQ}
+        \For{$item\_id \in V$} 
+            \State $score[item\_id]  \pluseq S[k,G[item\_id,k]] $ 
+        \EndFor
+   \EndFor
+   \State \Return TopK($score$, $K$) 
+\end{algorithmic}
+\end{algorithm}
+
 
 \end{document}
