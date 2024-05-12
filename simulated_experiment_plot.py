@@ -10,18 +10,18 @@ print(mm_data)
 markers = [".", "^", "x", "d", "D"]
 for item_code_bytes in data.item_code_bytes.unique():
     code_data = data[data.item_code_bytes == item_code_bytes]
-    fig, ax = plt.subplots(1, 1, figsize=(4,2.5))
+    fig, ax = plt.subplots(1, 1, figsize=(4, 2.4))
     for i, method in enumerate(["PQTopK", "RecJPQ"]):
         method_code_data = code_data[code_data.method == method]
         ax.plot(method_code_data["num_items"], method_code_data["mRT"], label=method, marker = markers[i])
         pass
-    ax.plot(mm_data["num_items"], mm_data["mRT"], label="Matrix Multiplication", linestyle="--")
+    ax.plot(mm_data["num_items"], mm_data["mRT"], label="Transformer Default", linestyle="--")
     ax.set_xlabel("Number of Items")
-    ax.set_ylabel("Median Running Time (ms)")
+    ax.set_ylabel("mRT (ms)")
     ax.set_xscale('log')
     ax.set_yscale('log')
     ax.grid()
-    ax.legend(prop={'size': 6})
+    ax.legend(prop={'size': 8})
     fig.tight_layout()
     fig.savefig(f"figures/simulated_figure_{item_code_bytes}.pdf")
 

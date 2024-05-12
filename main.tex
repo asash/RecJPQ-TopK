@@ -260,9 +260,16 @@ We designed our experiments to answer two research questions:
 
 \begin{figure}
     \centering
-    \resizebox{\linewidth}{!}{
-        \includegraphics{figures/simulated_figure.pdf}
-    }
+
+        \subfloat[Code Length: 8]{
+        \resizebox{\linewidth}{!}{
+            \includegraphics{figures/simulated_figure_8.pdf}
+        }}
+        \\
+        \subfloat[Code Length: 64]{
+        \resizebox{\linewidth}{!}{
+            \includegraphics{figures/simulated_figure_64.pdf}
+        }}
     \caption{Efficiency of PQTopK on simulated data}
     \label{fig:enter-label}
 \end{figure}
