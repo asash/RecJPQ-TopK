@@ -219,13 +219,13 @@ Therefore,  we can pre-compute matrix $S$ \sasha{for a given sequence embedding}
 we can assume that it is negligible compared to exhaustive scoring of all items. 
 
 %\pageenlarge{1} 
-In the paper, we refer to the summation-based approach as \textit{PQTopK}; Algorithm~\ref{alg:top_k} illustrates the PQTopK in pseudo-code. \rsasha{PQTopK} allows selecting top $K$ items not only from all items but from a specific subset of items.
+In the paper, we refer to the summation-based approach as \textit{PQTopK}; Algorithm~\ref{alg:top_k} illustrates the PQTopK in pseudo-code. \rsasha{PQTopK} allows selecting top $K$ items not only from all items but from a specific subset of items. Note that the Algorithm has two loops: the outer loop (line~\ref{alg:outer_loop}) iterates over the items in the catalogue, and the inner loop (line~\ref{alg:inner_loop}) iterates over codes associated with the item. However, as the item scores are independent of each other, both loops can be efficiently parallelised. 
 
 
 
 \begin{algorithm}[h]
 \small
-\caption{PQTopK($G$, $S$, $K$, $V$). This is a simple summation-based scoring algorithm used by the RecJPQ method.}\label{alg:top_k}
+\caption{PQTopK($G$, $S$, $K$, $V$).}\label{alg:top_k}
 \begin{algorithmic}[1]
    \Require $G$ is the codebook (mapping: item id $\rightarrow$ sub-item ids), Eq.~\eqref{eq:sub_ids_map}
    \Require $S$ is the matrix of pre-computed sub-item scores, indexed by split and sub-item, Eq.~\eqref{eq:sub_item_scores}
@@ -235,8 +235,8 @@ In the paper, we refer to the summation-based approach as \textit{PQTopK}; Algor
    \Require $V \subseteq I$ are the items to score; all items ($V = I$)  if not given 
    
    \State $scores \gets$ empty array of scores for all items in $V$, initialised to 0
-   \For{$item\_id \in V$} \Comment{This loop can be efficiently vectorised}
-        \State $score[item\_id] \gets \sum_{k=1}^{m} S[k,G[item\_id,k]] $ \Comment{Eq.~\eqref{eq:sum_sub_scores}}
+   \For{$item\_id \in V$} \label{alg:outer_loop} \Comment{This loop can be efficiently parallelised}
+        \State $score[item\_id] \gets \sum_{k=1}^{m} S[k,G[item\_id,k]] \label{alg:inner_loop} $ \Comment{Eq.~\eqref{eq:sum_sub_scores}}
    \EndFor
    \State \Return TopK($score$, $K$) \Comment{Returns a list of $\langle$ItemId, Score$\rangle$ pairs} 
 \end{algorithmic}
