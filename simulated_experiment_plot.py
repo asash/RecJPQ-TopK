@@ -12,7 +12,7 @@ linesize=2
 markersize=5
 for item_code_bytes in data.item_code_bytes.unique():
     code_data = data[data.item_code_bytes == item_code_bytes]
-    fig, ax = plt.subplots(1, 1, figsize=(2.8, 2.2))
+    fig, ax = plt.subplots(1, 1, figsize=(2.8, 1.8))
     for i, method in enumerate(["PQTopK", "RecJPQ"]):
         method_code_data = code_data[code_data.method == method]
         ax.plot(method_code_data["num_items"], method_code_data["mRT"], label=method, marker = markers[i], linewidth=linesize, markersize=markersize)

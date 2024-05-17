@@ -172,7 +172,7 @@ With large item catalogues, the item embedding matrix $W$ requires too much memo
 \begin{align}
     G[i] \rightarrow \left\{g_{i1}, g_{i2}, ..., g_{im}\right\} \label{eq:sub_ids_map}
 \end{align}
-where $g_{ij}$ is the $j$-th sub-id associated with item $i$ and $m$ is the number of splits. There are several algorithms for associating ids to sub-ids, for instance using KMeans~\citemissing{}, or learning during model training~\cite{chenDifferentiableProductQuantization2020}; 
+where $g_{ij}$ is the $j$-th sub-id associated with item $i$ and $m$ is the number of splits. There are several algorithms for associating ids to sub-ids, for instance using KMeans~\cite{jegouProductQuantizationNearest2011}, or learning during model training~\cite{chenDifferentiableProductQuantization2020}; 
 %The exact algorithm for associating ids with sub-ids is specific to different implementations of PQ. For example, the original PQ implementation uses variations of K-Means clustering, Differentiable Product Quantisation proposes a method to learn the mapping as part of overall model training, and 
 RecJPQ~\cite{petrovRecJPQTrainingLargeCatalogue2024} derives the codes from a truncated SVD decomposition of the user-item interactions matrix. 
 
@@ -263,11 +263,12 @@ We designed our experiments to answer two research questions:
 
 \begin{table}
 \caption{Efficiency analysis of item scoring methods. mRT is the Median Response Time, measured in milliseconds.} \label{tb:main}
+\vspace{-1\baselineskip}
 \resizebox{\linewidth}{!}{
     \input{main_table}
 }
+\vspace{-1\baselineskip}
 \end{table}
-
 
 \section{Analysis}
 \pageenlarge{3}
@@ -284,7 +285,6 @@ In summary, answering RQ1, we find that PQTopK is the most efficient method amon
 
 \begin{figure}
     \centering
-
         \subfloat[Number of splits: $m=8$]{
         \resizebox{0.5\linewidth}{!}{
             \includegraphics{figures/simulated_figure_8.pdf}
@@ -295,8 +295,10 @@ In summary, answering RQ1, we find that PQTopK is the most efficient method amon
             \includegraphics{figures/simulated_figure_64.pdf}
             \label{subfig:simpulated_64}
         }}
+    \vspace{-0.5\baselineskip    }
     \caption{Efficiency of PQTopK on simulated data}
     \label{fig:simulate_effectiveness}
+    \vspace{-1\baselineskip}
 \end{figure}
 
 Figure~\ref{fig:simulate_effectiveness} reports the mean response time for Default Transformer scoring, PQTopK and RecJPQ (optimised) without the backbone Transformer model. Figure~\ref{subfig:simpulated_8} reports for the results for $m=8$ splits, whereas Subfigure~\ref{subfig:simpulated_64} reports results for $64$. Both Figure~\ref{subfig:simpulated_8} \& b include the matrix multiplication-based Transformer Default baseline that does not depend on the number of splits. 
