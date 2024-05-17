@@ -183,7 +183,6 @@ Then, PQ reconstructs the item embedding $w_i$ as a concatenation of the associa
     w_i =  \psi_{1,g_{i1}} \mathbin\Vert \psi_{2,g_{i2}}  \mathbin\Vert ... \mathbin\Vert  \psi_{m,g_{im}} \label{eq:pq:item_embedding}
 \end{align}
 
-\pageenlarge{3}
 Finally, an item score is computed as the dot product of the sequence embedding and the constructed item embedding: 
 \begin{align}
     r_i = w_i \cdot \phi\label{eq:dot_product}
@@ -191,6 +190,7 @@ Finally, an item score is computed as the dot product of the sequence embedding 
 \looseness -1 A straightforward use of Equation~\eqref{eq:dot_product} for item scoring in PQ-based recommendation models does not lead to any computational efficiency improvements compared to models where all item embeddings are stored explicitly: \rsasha{in both cases, the algorithm would need to multiply the sequence embedding $w$  by the (reconstructed) embeddings of all items.}
 However, \rsasha{the sub-id representations of} PQ \rsasha{allow} a more efficient scoring algorithm \rsasha{which we describe next}. 
 
+\pageenlarge{3}
 \section{PQTopK Algorithm} \label{sec:pq_topk}
 \rsasha{PQTopK is a scoring algorithm for the PQ-based models \rsasha{that uses pre-computation of sub-id scores for improved inference efficiency}. While versions of this algorithm have previously been described, for example, for a different recommendation scenario~\cite{lianLightRecMemorySearchEfficient2020} and for document retrieval~\cite{zhanJointlyOptimizingQuery2021}, to the best of our knowledge, it has not been previously applied for sequential recommendation nor Transformer-based models.}
 
