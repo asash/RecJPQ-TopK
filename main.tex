@@ -248,12 +248,33 @@ does not depend on $|I|$ %the catalogue size, %$|I|$,
 and 
 we can assume that it is negligible w.r.t.\ the exhaustive scoring of all items. 
 
+% \begin{algorithm}[tb]
+% \small
+% \caption{PQTopK($G$, $S$, $K$, $V$).}\label{alg:top_k}
+% \begin{algorithmic}[1]
+%    \Require $G$ is the codebook (mapping: item id $\rightarrow$ sub-item ids), Eq.~\eqref{eq:sub_ids_map}
+%    \Require $S$ is the matrix of pre-computed sub-item scores, indexed by split and sub-item, Eq.~\eqref{eq:sub_item_scores}
+
+%    \Require $K$ is the number of results to return
+% %   %\Require $m$ is the number of splits
+%    \Require $V \subseteq I$ are the items to score; all items ($V = I$)  if not given 
+   
+%    \State $scores \gets$ empty array of scores for all items in $V$, initialised to 0
+%    \For{$item\_id \in V$} \label{alg:outer_loop} \Comment{This loop can be efficiently parallelised}
+%         \State $score[item\_id] \gets \sum_{k=1}^{m} S[k,G[item\_id,k]] \label{alg:inner_loop} $ \Comment{Eq.~\eqref{eq:sum_sub_scores}}
+%    \EndFor
+%    \State \Return TopK($score$, $K$) \Comment{Returns a list of $\langle$ItemId, Score$\rangle$ pairs} 
+% \end{algorithmic}
+% \end{algorithm}
+
+
+
 \begin{algorithm}[tb]
 \small
 \caption{PQTopK($G$, $S$, $K$, $V$).}\label{alg:top_k}
 \begin{algorithmic}[1]
-   \Require $G$ is the codebook (mapping: item id $\rightarrow$ sub-item ids), Eq.~\eqref{eq:sub_ids_map}
-   \Require $S$ is the matrix of pre-computed sub-item scores, indexed by split and sub-item, Eq.~\eqref{eq:sub_item_scores}
+   \Require $G$ is the codebook (mapping: item id $\rightarrow$ sub-item tokens)
+   \Require $S$ is the matrix of pre-computed sub-item scores, indexed by split and token
 
    \Require $K$ is the number of results to return
 %   %\Require $m$ is the number of splits
@@ -261,7 +282,7 @@ we can assume that it is negligible w.r.t.\ the exhaustive scoring of all items.
    
    \State $scores \gets$ empty array of scores for all items in $V$, initialised to 0
    \For{$item\_id \in V$} \label{alg:outer_loop} \Comment{This loop can be efficiently parallelised}
-        \State $score[item\_id] \gets \sum_{k=1}^{m} S[k,G[item\_id,k]] \label{alg:inner_loop} $ \Comment{Eq.~\eqref{eq:sum_sub_scores}}
+        \State $score[item\_id] \gets \sum_{k=1}^{m} S[k,G[item\_id,k]] \label{alg:inner_loop} $ 
    \EndFor
    \State \Return TopK($score$, $K$) \Comment{Returns a list of $\langle$ItemId, Score$\rangle$ pairs} 
 \end{algorithmic}
@@ -362,7 +383,7 @@ On the smaller Booking.com dataset, we see that \scrc{the running time of the ba
 \begin{table*}
 \caption{Efficiency analysis of item scoring methods. mRT is the Median Response Time, measured in milliseconds; SAS is the SASRec model and BERT is the gBERT4Rec model.} \label{tb:main}
 \vspace{-1\baselineskip}
-\input{main_table}
+\input{main_table2}
 \end{table*}
 
 \looseness -1 When using  \gsasha{SASRec as the backbone with RecJPQ scoring}, both \gsasha{the backbone and the scoring head} contribute \gsasha{similarly} towards total scoring time (SASRec takes 24ms while scoring takes 29ms). \rsasha{In contrast}, when using PQTopK, the total time \rsasha{is dominated by} the Transformer model itself (e.g., PQTopK only uses 10\gsasha{ms.}  out of 34 when using the SASRec backbone). If we isolate scoring time, the Gowalla with SASRec backbone dataset with  PQTopK is 13$\times$ faster than the Transformer default and $3\times$ faster than RecJPQ scoring.
